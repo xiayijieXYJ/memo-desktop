@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Memo — 常驻桌面的今日待办小卡片</title>
+<meta name="description" content="Memo 是一款常驻 Windows 桌面的待办小卡片：只记今天要做的事，昨天没做完自动顺延，支持提前安排将来、按日期回看、月度总结。数据存在本地 SQLite，开源免费。" />
+<meta property="og:title" content="Memo — 常驻桌面的今日待办小卡片" />
+<meta property="og:description" content="只记今天要做的事，昨天没做完自动顺延。开源、免费、数据在本地。" />
+<meta property="og:image" content="screenshot.png" />
+<meta property="og:type" content="website" />
+<link rel="icon" href="icon.png" />
+<style>
+  :root {
+    --ink: #2b2620;
+    --ink-soft: #6b6357;
+    --line: #e6ddc9;
+    --cream: #fbf7ec;
+    --cream-deep: #f4eddc;
+    --accent: #c8912a;
+    --accent-deep: #a8771a;
+    --card: #fffdf8;
+    --radius: 18px;
+    --shadow: 0 1px 2px rgba(60, 48, 24, .05), 0 10px 30px -12px rgba(60, 48, 24, .18);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; color: var(--ink); background: var(--cream);
+    font: 16px/1.75 system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent-deep); }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 0 24px; }
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(251, 247, 236, .88);
+    backdrop-filter: saturate(140%) blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  nav { display: flex; align-items: center; gap: 14px; height: 62px; }
+  nav img { width: 28px; height: 28px; border-radius: 7px; }
+  nav b { font-size: 17px; letter-spacing: .3px; }
+  nav .links { margin-left: auto; display: flex; gap: 20px; font-size: 14px; }
+  nav .links a { color: var(--ink-soft); text-decoration: none; }
+  nav .links a:hover { color: var(--accent-deep); }
+  @media (max-width: 620px) { nav .links { display: none; } }
+
+  .hero { padding: 72px 0 40px; text-align: center; }
+  .hero .badge {
+    display: inline-block; font-size: 13px; color: var(--accent-deep);
+    background: #f7eed6; border: 1px solid #ecdcb4; border-radius: 999px;
+    padding: 3px 12px; margin-bottom: 18px;
+  }
+  .hero h1 { font-size: 54px; line-height: 1.1; margin: 0 0 14px; letter-spacing: -1px; }
+  .hero p.lead { font-size: 19px; color: var(--ink-soft); max-width: 620px; margin: 0 auto 8px; }
+  .hero p.sub { font-size: 14px; color: #8d8474; margin: 0 auto 28px; }
+  .btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 26px; border-radius: 999px; text-decoration: none;
+    font-size: 15px; font-weight: 600; border: 1px solid transparent;
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .btn:hover { transform: translateY(-1px); }
+  .btn.primary { background: var(--accent); color: #fff; box-shadow: 0 8px 20px -8px rgba(200, 145, 42, .8); }
+  .btn.primary:hover { background: var(--accent-deep); }
+  .btn.ghost { background: var(--card); color: var(--ink); border-color: var(--line); }
+  .meta { margin-top: 18px; font-size: 13px; color: #948b7b; }
+
+  .shot { padding: 18px 0 64px; text-align: center; }
+  .shot img { max-width: 100%; width: 460px; border-radius: 14px; }
+  .shot small { display: block; color: #948b7b; margin-top: 10px; font-size: 13px; }
+
+  section { padding: 56px 0; }
+  section.alt { background: var(--cream-deep); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  h2 { font-size: 30px; margin: 0 0 6px; letter-spacing: -.4px; }
+  .h2-sub { color: var(--ink-soft); margin: 0 0 32px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(268px, 1fr)); gap: 16px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 22px 22px 20px; box-shadow: var(--shadow);
+  }
+  .card .ico { font-size: 22px; line-height: 1; }
+  .card h3 { font-size: 16px; margin: 10px 0 6px; }
+  .card p { margin: 0; font-size: 14px; color: var(--ink-soft); line-height: 1.7; }
+
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
+  @media (max-width: 760px) { .pair { grid-template-columns: 1fr; } }
+  .pair figure { margin: 0; text-align: center; }
+  .pair img { width: 100%; max-width: 380px; border-radius: 14px; }
+  .pair figcaption { font-size: 13px; color: #948b7b; margin-top: 10px; }
+
+  pre {
+    background: #2b2620; color: #f6f1e4; border-radius: 12px; padding: 16px 18px;
+    overflow-x: auto; font-size: 13.5px; line-height: 1.7;
+  }
+  code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; }
+  p code, li code { background: #f2ebdb; color: #6b5326; padding: 1px 6px; border-radius: 5px; font-size: 13.5px; }
+
+  details {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 18px; margin-bottom: 10px; box-shadow: var(--shadow);
+  }
+  details summary { cursor: pointer; font-weight: 600; font-size: 15px; }
+  details p { color: var(--ink-soft); font-size: 14px; margin: 10px 0 0; }
+
+  footer { padding: 44px 0 60px; text-align: center; color: #948b7b; font-size: 13.5px; }
+  footer a { color: var(--ink-soft); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <nav>
+      <img src="icon.png" alt="Memo 图标" />
+      <b>Memo</b>
+      <span class="links">
+        <a href="#features">功能</a>
+        <a href="#shots">截图</a>
+        <a href="#start">开始用</a>
+        <a href="https://github.com/xiayijieXYJ/memo-desktop">GitHub</a>
+      </span>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <span class="badge">Windows 10 / 11 · 开源免费</span>
+    <h1>Memo</h1>
+    <p class="lead">常驻桌面的今日待办小卡片。只记今天要做的事，昨天没做完的自动顺延，随手瞄一眼就知道还剩几件。</p>
+    <p class="sub">单文件 2.4 MB · 数据留在本地 SQLite · 不联网、不注册</p>
+    <div class="btns">
+      <a class="btn primary" href="https://github.com/xiayijieXYJ/memo-desktop/releases/latest">下载 Memo.exe</a>
+      <a class="btn ghost" href="https://github.com/xiayijieXYJ/memo-desktop">查看源码</a>
+    </div>
+    <p class="meta">需要 <a href="https://dotnet.microsoft.com/download/dotnet/8.0">.NET 8 桌面运行时</a>；也可以下载自包含版，免安装运行时</p>
+  </div>
+
+  <div class="wrap shot">
+    <img src="demo.gif" alt="Memo 演示：今日卡片、勾掉一条自动沉底、月度总结" />
+    <small>卡片 → 勾掉一条自动划线沉底 → 月度总结按月回看</small>
+  </div>
+
+  <section id="features" class="alt">
+    <div class="wrap">
+      <h2>它是一个很窄的功能集</h2>
+      <p class="h2-sub">不做项目管理、不做多人协作，只解决「今天该干什么」。</p>
+      <div class="grid">
+        <div class="card">
+          <div class="ico">📌</div>
+          <h3>桌面常驻、始终置顶</h3>
+          <p>无边框圆角卡片，拖到屏幕任意角落，位置和尺寸下次启动自动恢复；点 📌 可切换置顶。</p>
+        </div>
+        <div class="card">
+          <div class="ico">🔁</div>
+          <h3>昨天没做完，今天自动顺延</h3>
+          <p>未完成的条目第二天继续出现，并标注「顺延 N 天」；新一天不会丢事，也不会把旧账藏起来。</p>
+        </div>
+        <div class="card">
+          <div class="ico">📅</div>
+          <h3>提前安排将来</h3>
+          <p>往后翻或点日历挑某一天，就切到「安排 10月21日」。提前写下的事记在那一天，不会提前冒到今天。</p>
+        </div>
+        <div class="card">
+          <div class="ico">📊</div>
+          <h3>月度总结</h3>
+          <p>本月完成了多少、新增了多少、手上还剩多少；按完成日期记账，9 月安排 10 月才勾掉的算 10 月成绩。</p>
+        </div>
+        <div class="card">
+          <div class="ico">🔍</div>
+          <h3>按日期回看</h3>
+          <p>左右箭头按自然日翻页，或开日历挑日子（有记录的日子带圆点）。看过去时整卡只读，一键回到今天。</p>
+        </div>
+        <div class="card">
+          <div class="ico">🎨</div>
+          <h3>三套主题</h3>
+          <p>深色 / 浅色 / 浅黄，设置里三选一。透明度和置顶也在同一个设置窗里。</p>
+        </div>
+        <div class="card">
+          <div class="ico">⌨️</div>
+          <h3>全局热键与托盘</h3>
+          <p><code>Ctrl + Alt + M</code> 在任何程序里都能把卡片叫出来；平时收在托盘，任务栏不占位。</p>
+        </div>
+        <div class="card">
+          <div class="ico">↩️</div>
+          <h3>删除可撤销</h3>
+          <p>删除只打标记不真删，底部的「撤销」能把最近删掉的条目捞回来。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="shots">
+    <div class="wrap">
+      <h2>长这样</h2>
+      <p class="h2-sub">左：今日卡片；右：月度总结窗（可拖动、可翻月）。</p>
+      <div class="pair">
+        <figure>
+          <img src="screenshot.png" alt="Memo 今日卡片截图" />
+          <figcaption>今日卡片 · 浅色主题</figcaption>
+        </figure>
+        <figure>
+          <img src="screenshot-summary.png" alt="Memo 月度总结截图" />
+          <figcaption>月度总结 · 本月完成 + 仍在处理</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="start" class="alt">
+    <div class="wrap">
+      <h2>开始用</h2>
+      <p class="h2-sub">下载即用，不需要安装。</p>
+
+      <h3 style="font-size:17px;margin:26px 0 10px">方式一：直接跑</h3>
+      <ol style="color:var(--ink-soft);font-size:15px;line-height:2;margin:0;padding-left:22px">
+        <li>到 <a href="https://github.com/xiayijieXYJ/memo-desktop/releases/latest">Releases</a> 下载 <code>Memo.exe</code></li>
+        <li>放到一个固定的目录（比如 <code>D:\Tools\Memo\</code>），双击运行，给它创建个桌面快捷方式</li>
+        <li>第一次启动会自动建库，直接就能加第一条待办</li>
+        <li>想开机自启：设置里勾选「开机启动」</li>
+      </ol>
+
+      <h3 style="font-size:17px;margin:30px 0 10px">方式二：从源码构建</h3>
+<pre><code>git clone https://github.com/xiayijieXYJ/memo-desktop.git
+cd memo-desktop
+dotnet build -c Release
+dotnet run -c Release
+
+# 打包成单文件（需要 .NET 8 SDK）
+publish.cmd            # 框架依赖版，2.4 MB
+publish-standalone.cmd # 自包含版，含运行时，体积大</code></pre>
+
+      <h3 style="font-size:17px;margin:30px 0 10px">自检与演示数据</h3>
+<pre><code>Memo.exe --selftest   # 95 项端到端断言，全绿才算改对了
+Memo.exe --seed       # 写入一批演示数据，看界面用</code></pre>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>数据在哪</h2>
+      <p class="h2-sub">全在本机，没有账号，没有云同步。</p>
+      <div class="grid">
+        <div class="card">
+          <h3>%APPDATA%\Memo\memo.db</h3>
+          <p>一个 SQLite 文件，所有待办都在里面。拷走这个文件就等于带走了全部数据。</p>
+        </div>
+        <div class="card">
+          <h3>%APPDATA%\Memo\backups\</h3>
+          <p>每次启动自动备份一份数据库，出问题可以拿旧文件盖回去。</p>
+        </div>
+        <div class="card">
+          <h3>不联网</h3>
+          <p>程序没有任何网络请求，不需要登录，也不会上传你的待办内容。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="alt">
+    <div class="wrap">
+      <h2>常见问题</h2>
+      <p class="h2-sub">几个被问得最多的点。</p>
+      <details>
+        <summary>为什么只能记「今天」，不能建一个长期项目列表？</summary>
+        <p>刻意的取舍。列表一长就会开始拖延和堆灰，「今天」这个小窗口才逼得人做减法。确实要往后放的事，用「提前安排」记到具体某天就行。</p>
+      </details>
+      <details>
+        <summary>已完成的事去哪了？</summary>
+        <p>勾掉后划线沉到列表底部；右键「清除已完成」可以一次性清空。想回看某天干了什么，用「月度总结」，或在日历里点那一天。</p>
+      </details>
+      <details>
+        <summary>能同步到手机或其他电脑吗？</summary>
+        <p>不能，这是本地单机程序。多台电脑各自独立；需要迁移就把 <code>memo.db</code> 拷过去。</p>
+      </details>
+      <details>
+        <summary>为什么图标是深黄色的？</summary>
+        <p>那是应用的主色，取自浅黄主题的强调色，跟界面里的高亮按钮是同一个颜色。</p>
+      </details>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Memo · MIT License · 用 WPF / .NET 8 写的</p>
+    <p>
+      <a href="https://github.com/xiayijieXYJ/memo-desktop">源码</a> ·
+      <a href="https://github.com/xiayijieXYJ/memo-desktop/releases">版本记录</a> ·
+      <a href="https://github.com/xiayijieXYJ/memo-desktop/blob/main/docs/%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E.txt">使用说明</a>
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

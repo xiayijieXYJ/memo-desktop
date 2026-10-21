@@ -7,12 +7,20 @@
 ![platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-lightgrey)
 
 <p align="center">
-  <img src="docs/screenshot.png" width="330" alt="Memo 主卡片" />
-  &nbsp;&nbsp;
-  <img src="docs/screenshot-summary.png" width="330" alt="月度总结" />
+  <img src="docs/demo.gif" width="430" alt="Memo 演示：今日卡片、勾掉一条自动沉底、月度总结" />
 </p>
 
-<p align="center"><sub>左：今日卡片（深色主题）　右：月度总结 —— 本月完成了什么、还在处理哪些</sub></p>
+<p align="center"><sub>卡片 → 勾掉一条自动划线沉底 → 月度总结按月回看</sub></p>
+
+<p align="center">
+  <img src="docs/screenshot.png" width="300" alt="Memo 主卡片" />
+  &nbsp;&nbsp;
+  <img src="docs/screenshot-summary.png" width="310" alt="月度总结" />
+</p>
+
+<p align="center"><sub>左：今日卡片（浅色主题）　右：月度总结 —— 本月完成了什么、还在处理哪些</sub></p>
+
+<p align="center"><a href="https://xiayijieXYJ.github.io/memo-desktop/">→ 产品主页（截图、下载、常见问题）</a></p>
 
 ## 功能
 
