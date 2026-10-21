@@ -1,0 +1,32 @@
+# ---------- 构建产物 ----------
+bin/
+obj/
+publish/
+dist/
+[Dd]ebug/
+[Rr]elease/
+
+# ---------- IDE ----------
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userprefs
+
+# ---------- 运行时数据（都在 %APPDATA%\Memo，这里只是兜底） ----------
+*.db
+*.db-shm
+*.db-wal
+*.log
+*.lnk
+
+# ---------- 临时脚本与截图 ----------
+_*.ps1
+_*.png
+_*.db
+
+# ---------- 系统 ----------
+Thumbs.db
+desktop.ini
+.DS_Store

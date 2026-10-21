@@ -1,0 +1,466 @@
+<Window x:Class="Memo.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Memo"
+        xmlns:models="clr-namespace:Memo.Models"
+        Title="Memo"
+        Icon="Assets/app.ico"
+        Width="300" Height="430"
+        MinWidth="280" MinHeight="220"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="CanResizeWithGrip"
+        ShowInTaskbar="False"
+        ShowActivated="True"
+        Topmost="True"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display"
+        FontFamily="Microsoft YaHei UI, Segoe UI"
+        SnapsToDevicePixels="True">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <local:InverseBoolToVisibilityConverter x:Key="InvBoolToVis" />
+        <local:StringToVisibilityConverter x:Key="StrToVis" />
+
+        <!-- 颜色全部来自 Themes/Dark.xaml 与 Themes/Light.xaml，必须用 DynamicResource：
+             StaticResource 会把颜色焊死在加载那一刻，切主题时不会跟着变。
+             下面只留形状/尺寸相关的静态样式。 -->
+        <Style x:Key="IconButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSubtle}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Width" Value="20" />
+            <Setter Property="Height" Value="20" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverFill}" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource PressedFill}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.3" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 复选框：圆形描边，勾选后填充绿色 -->
+        <Style x:Key="RoundCheck" TargetType="CheckBox">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid Width="18" Height="18">
+                            <Ellipse x:Name="Ring" Width="16" Height="16"
+                                     Stroke="{DynamicResource CheckRing}" StrokeThickness="1.5" Fill="Transparent" />
+                            <Path x:Name="Tick" Data="M 0,4 L 3,7 L 8,1"
+                                  Stroke="White" StrokeThickness="1.6"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Visibility="Collapsed" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Tick" Property="Visibility" Value="Visible" />
+                                <Setter TargetName="Ring" Property="Stroke" Value="{DynamicResource CheckDoneFill}" />
+                                <Setter TargetName="Ring" Property="Fill" Value="{DynamicResource CheckDoneFill}" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Ring" Property="StrokeThickness" Value="2" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 优先级徽章：显示"高/中/低"，点击轮转 -->
+        <Style x:Key="PriorityBadge" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Width" Value="22" />
+            <Setter Property="Height" Value="18" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" CornerRadius="4" Background="{DynamicResource MidBadge}">
+                            <TextBlock x:Name="Txt" Text="{TemplateBinding Content}"
+                                       Foreground="{DynamicResource MidBrush}"
+                                       FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.72" />
+                            </Trigger>
+                            <DataTrigger Binding="{Binding PriorityKey}" Value="High">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HighBadge}" />
+                                <Setter TargetName="Txt" Property="Foreground" Value="{DynamicResource HighBrush}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding PriorityKey}" Value="Low">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource LowBadge}" />
+                                <Setter TargetName="Txt" Property="Foreground" Value="{DynamicResource LowBrush}" />
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 新建时的优先级按钮：文字和配色直接绑 VM 的新条目优先级 -->
+        <Style x:Key="NewPriorityButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Width" Value="24" />
+            <Setter Property="Height" Value="20" />
+            <Setter Property="Margin" Value="0,0,6,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" CornerRadius="4" Background="{DynamicResource MidBadge}">
+                            <TextBlock x:Name="Txt" Text="{Binding NewPriorityLabel}"
+                                       Foreground="{DynamicResource MidBrush}"
+                                       FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.72" />
+                            </Trigger>
+                            <DataTrigger Binding="{Binding NewPriorityKey}" Value="High">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HighBadge}" />
+                                <Setter TargetName="Txt" Property="Foreground" Value="{DynamicResource HighBrush}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding NewPriorityKey}" Value="Low">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource LowBadge}" />
+                                <Setter TargetName="Txt" Property="Foreground" Value="{DynamicResource LowBrush}" />
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PlainTextBox" TargetType="TextBox">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="SelectionBrush" Value="{DynamicResource SelectionFill}" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+    </Window.Resources>
+
+    <!-- 卡片主体 -->
+    <Border x:Name="RootCard" Background="{DynamicResource CardBackground}"
+            CornerRadius="12" BorderThickness="1" BorderBrush="{DynamicResource CardBorder}"
+            MouseLeftButtonDown="RootCard_MouseLeftButtonDown">
+        <Border.Effect>
+            <DynamicResource ResourceKey="CardShadow" />
+        </Border.Effect>
+
+        <!-- 卡片空白处右键菜单：设置入口藏在这里，顶部按钮就不必挤占宽度。
+             底部那两个按钮去掉后，「清除已完成」挪到这里，「显示/隐藏已完成」留在设置窗口。 -->
+        <Border.ContextMenu>
+            <ContextMenu>
+                <MenuItem Header="设置…" Click="OpenSettingsEntry" />
+                <MenuItem Header="添加一条" Click="FocusInputEntry" />
+                <Separator />
+                <MenuItem Header="清除已完成" Click="ClearDoneButton_Click" />
+                <MenuItem Header="显示/隐藏已完成" Click="ToggleShowDoneEntry" />
+                <MenuItem Header="月度总结…" Click="OpenSummaryEntry" />
+                <Separator />
+                <MenuItem Header="隐藏到托盘" Click="CloseButton_Click" />
+            </ContextMenu>
+        </Border.ContextMenu>
+
+        <Grid Margin="12,10,12,8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- 顶部：日期导航（左）+ 窗口按钮（右）。
+                 只保留日期本身；「周几 · 还剩几项」那行副标题已去掉（用户觉得多余），
+                 剩余数量看底部状态栏的「完成 2 / 9」就够了。
+                 日期导航组用 Auto/*/Auto 三列：导航组整体按内容宽度靠左，
+                 中间的 * 吸收多出来的宽度。这样窗口拉宽时「›」始终贴着日期文字，
+                 不会跟着窗口一起飘到右边去（之前日期列是 *，拉宽后箭头被推得很远）。 -->
+            <Grid Grid.Row="0" Margin="2,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- 日期两边各一个箭头：按自然日前一天/后一天翻（不是只跳有记录的日子）。
+                     四列全是 Auto，整组宽度由内容决定，箭头紧贴日期左右。 -->
+                <Grid Grid.Column="0" HorizontalAlignment="Left">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Button Grid.Column="0" Style="{StaticResource IconButton}" Content="‹" FontSize="13"
+                            Click="PrevDateButton_Click" ToolTip="前一天" Margin="0,0,2,0"
+                            IsEnabled="{Binding CanGoPrevious}" />
+                    <TextBlock Grid.Column="1" Text="{Binding HeaderText}" Foreground="{DynamicResource TextPrimary}"
+                               FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"
+                               MaxWidth="140"
+                               TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+                    <Button Grid.Column="2" Style="{StaticResource IconButton}" Content="›" FontSize="13"
+                            Click="NextDateButton_Click" ToolTip="后一天" Margin="2,0,0,0"
+                            IsEnabled="{Binding CanGoNext}" />
+                    <!-- 直接挑日子回看：只靠左右箭头翻太慢，尤其想跳很久以前的某天 -->
+                    <Button Grid.Column="3" Style="{StaticResource IconButton}" Content="📅" FontSize="10"
+                            Click="CalendarButton_Click" ToolTip="按日期回看 / 提前安排" Margin="4,0,0,0" />
+                </Grid>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Style="{StaticResource IconButton}" Content="⚙"
+                            ToolTip="设置" Click="OpenSettingsEntry" />
+                    <Button x:Name="PinButton" Style="{StaticResource IconButton}" Content="📌"
+                            ToolTip="取消置顶" Click="PinButton_Click" />
+                    <Button Style="{StaticResource IconButton}" Content="—"
+                            ToolTip="收进托盘" Click="MinimizeButton_Click" />
+                    <Button Style="{StaticResource IconButton}" Content="✕"
+                            ToolTip="隐藏到托盘" Click="CloseButton_Click" />
+                </StackPanel>
+            </Grid>
+
+            <!-- 输入区：看今天、或翻到将来提前安排时出现；回看过去时同一个位置换成只读提示条 -->
+            <Border Grid.Row="1" Background="{DynamicResource InputBackground}" CornerRadius="8" Padding="8,2,6,2" Margin="0,0,0,8"
+                    Visibility="{Binding IsEditable, Converter={StaticResource BoolToVis}}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Button Grid.Column="0" x:Name="NewPrioButton" Style="{StaticResource NewPriorityButton}"
+                            Click="NewPriorityButton_Click" ToolTip="点击切换新条目的优先级" />
+
+                    <Grid Grid.Column="1">
+                        <TextBox x:Name="NewItemBox" Style="{StaticResource PlainTextBox}"
+                                 Text="{Binding NewContent, UpdateSourceTrigger=PropertyChanged}"
+                                 KeyDown="NewItemBox_KeyDown" TextChanged="NewItemBox_TextChanged"
+                                 FontSize="13" />
+                        <TextBlock x:Name="Placeholder" Text="{Binding PlaceholderText}"
+                                   Foreground="{DynamicResource TextPlaceholder}" FontSize="13" IsHitTestVisible="False"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+                    </Grid>
+
+                    <Button Grid.Column="2" Style="{StaticResource IconButton}" Content="↵"
+                            Click="AddButton_Click" ToolTip="添加（Enter）" FontSize="12" />
+                </Grid>
+            </Border>
+
+            <!-- 回看过去时的只读提示条，占掉输入区的位置，一眼看出现在不是能改的日子 -->
+            <Border Grid.Row="1" Background="{DynamicResource HistoryBannerFill}" CornerRadius="8" Padding="8,4,4,4" Margin="0,0,0,8"
+                    Visibility="{Binding IsReadOnlyView, Converter={StaticResource BoolToVis}}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="只读回看 · 不能增改" Foreground="{DynamicResource HistoryBannerText}"
+                               FontSize="11" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+                    <Button Grid.Column="1" Style="{StaticResource IconButton}" Content="回到今天"
+                            FontSize="10" Width="Auto" Padding="6,2" Click="GoTodayButton_Click"
+                            ToolTip="回到今天，恢复可编辑" />
+                </Grid>
+            </Border>
+
+            <!-- 待办列表 -->
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled" Padding="0,0,2,0">
+                <ScrollViewer.Resources>
+                    <Style TargetType="ScrollBar">
+                        <Setter Property="Width" Value="4" />
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ScrollBar">
+                                    <Grid Background="Transparent">
+                                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                            <Track.Thumb>
+                                                <Thumb>
+                                                    <Thumb.Template>
+                                                        <ControlTemplate TargetType="Thumb">
+                                                            <Border Background="{DynamicResource ScrollThumb}" CornerRadius="2" />
+                                                        </ControlTemplate>
+                                                    </Thumb.Template>
+                                                </Thumb>
+                                            </Track.Thumb>
+                                        </Track>
+                                    </Grid>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </ScrollViewer.Resources>
+
+                <ItemsControl x:Name="ItemsList" ItemsSource="{Binding ItemsView}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type models:MemoItem}">
+                            <Border x:Name="Row" CornerRadius="7" Padding="7,6" Margin="0,2"
+                                    Background="Transparent"
+                                    ContextMenuOpening="Row_ContextMenuOpening">
+                                <Border.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="编辑" Click="MenuItem_Edit_Click" />
+                                        <MenuItem Header="复制文字" Click="MenuItem_Copy_Click" />
+                                        <Separator />
+                                        <MenuItem Header="高优先级" Click="MenuItem_Priority_Click" Tag="2" />
+                                        <MenuItem Header="中优先级" Click="MenuItem_Priority_Click" Tag="1" />
+                                        <MenuItem Header="低优先级" Click="MenuItem_Priority_Click" Tag="0" />
+                                        <Separator />
+                                        <MenuItem Header="删除" Click="MenuItem_Delete_Click" />
+                                    </ContextMenu>
+                                </Border.ContextMenu>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- 双向绑定即可：鼠标点、键盘空格、UI Automation 都会走到同一处落库。
+                                         历史模式下整个勾选框禁用（绑 Window 的 IsEditable），避免改了历史状态。
+                                         对齐方式用 Top 而不是 Center：多行条目（超过两行的长文案）时，
+                                         居中的圆圈会垂在整段文字的中间，跟第一行文字错位。 -->
+                                    <CheckBox Grid.Column="0" Style="{StaticResource RoundCheck}"
+                                              VerticalAlignment="Top" Margin="0,2,0,0"
+                                              IsChecked="{Binding IsDone, Mode=TwoWay}"
+                                              IsEnabled="{Binding DataContext.IsEditable,
+                                                          RelativeSource={RelativeSource AncestorType=Window}}" />
+
+                                    <!-- 左边距 6：勾选框和优先级徽章之间留出一道空隙，两者不贴着 -->
+                                    <Button Grid.Column="1" Style="{StaticResource PriorityBadge}"
+                                            VerticalAlignment="Top" Margin="6,1,8,0"
+                                            Content="{Binding PriorityText}"
+                                            Click="PriorityBadge_Click"
+                                            IsEnabled="{Binding DataContext.IsEditable,
+                                                        RelativeSource={RelativeSource AncestorType=Window}}"
+                                            ToolTip="点击切换优先级" />
+
+                                    <Grid Grid.Column="2" VerticalAlignment="Top">
+                                        <TextBlock x:Name="ContentText" Text="{Binding Content}"
+                                                   Foreground="{DynamicResource TextPrimary}" FontSize="13"
+                                                   LineHeight="20" LineStackingStrategy="BlockLineHeight"
+                                                   TextWrapping="Wrap"
+                                                   Visibility="{Binding IsEditing, Converter={StaticResource InvBoolToVis}}"
+                                                   MouseLeftButtonDown="ContentText_MouseLeftButtonDown" />
+
+                                        <!-- 编辑框必须自己换行、自己长高。
+                                             原来是不换行的单行框：长文案在框里被压成一行，
+                                             光标跑到右边界以外，得先把横向滚动条拖到最后才看得见在打什么。
+                                             改成 Wrap 后，宽度始终等于列表这一列的宽度（跟上面那行文本一致），
+                                             高度由内容顶出来，窗户大小不动 —— 多出来的高度由外层 ScrollViewer 滚动消化。
+                                             故意不设 MaxHeight：一旦限高就变成「框内滚动 + 卡片滚动」两层滚轮，
+                                             滚起来会卡；让框一直长到底，只留外层一层滚动更好用。 -->
+                                        <TextBox x:Name="EditBox"
+                                                 Text="{Binding Content, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource PlainTextBox}" FontSize="13"
+                                                 MinHeight="20" Padding="2,1"
+                                                 TextWrapping="Wrap" AcceptsReturn="False"
+                                                 VerticalContentAlignment="Top"
+                                                 HorizontalScrollBarVisibility="Disabled"
+                                                 VerticalScrollBarVisibility="Auto"
+                                                 Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}}"
+                                                 IsVisibleChanged="EditBox_IsVisibleChanged"
+                                                 TextChanged="EditBox_TextChanged"
+                                                 KeyDown="EditBox_KeyDown" LostFocus="EditBox_LostFocus" />
+                                    </Grid>
+
+                                    <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Top" Margin="0,2,0,0">
+                                        <TextBlock Text="{Binding CarriedText}" Foreground="{DynamicResource TextCarried}"
+                                                   FontSize="10" Margin="4,0,4,0" VerticalAlignment="Center"
+                                                   Visibility="{Binding CarriedText, Converter={StaticResource StrToVis}}" />
+                                        <!-- 这里原本有个悬停才显示的 ✕ 删除按钮，已移除。
+                                             原因：卡片是 Topmost，压在别的窗口上层。那个按钮即使 Opacity=0
+                                             仍然参与命中测试，鼠标快速划过行尾那一格并按下时，
+                                             点击会被它吃掉并直接删条目；删掉一行下面的行上移，
+                                             同一坐标再点又删一条，实测连续丢了 4 条用户数据。
+                                             删除入口统一收到右键菜单「删除」，另有底部「撤销」兜底。 -->
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <DataTemplate.Triggers>
+                                <Trigger SourceName="Row" Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Row" Property="Background" Value="{DynamicResource RowHoverFill}" />
+                                </Trigger>
+                                <DataTrigger Binding="{Binding IsDone}" Value="True">
+                                    <Setter TargetName="ContentText" Property="Foreground" Value="{DynamicResource DoneText}" />
+                                    <Setter TargetName="ContentText" Property="TextDecorations" Value="Strikethrough" />
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!-- 空态 -->
+            <TextBlock Grid.Row="2" Text="{Binding EmptyText}" Foreground="{DynamicResource TextDisabled}" FontSize="12"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       IsHitTestVisible="False">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasItems}" Value="False">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+
+            <!-- 底部状态栏：只留进度和「撤销」。清除已完成、显示/隐藏已完成两个按钮
+                 已按用户要求去掉（都太占地方）；清除已完成挪到卡片空白处右键菜单，
+                 显示/隐藏已完成在设置窗口里还有勾选项。 -->
+            <Grid Grid.Row="3" Margin="2,6,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{Binding StatusText}" Foreground="{DynamicResource TextStatus}" FontSize="10.5"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Style="{StaticResource IconButton}" Content="月度总结" FontSize="10"
+                            Width="Auto" Padding="6,2" Click="OpenSummaryEntry"
+                            ToolTip="看看这个月完成了什么、还有多少在手上" Margin="0,0,4,0" />
+                    <Button Style="{StaticResource IconButton}" Content="撤销" FontSize="10"
+                            Width="Auto" Padding="6,2" Click="UndoDeleteButton_Click"
+                            Visibility="{Binding CanUndoDelete, Converter={StaticResource BoolToVis}}"
+                            ToolTip="把最近一次删除的条目还原" />
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>
