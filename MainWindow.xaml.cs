@@ -19,6 +19,9 @@ public partial class MainWindow : Window
     private readonly TrayIconManager _tray;
     private readonly DispatcherTimer _dateTimer;
 
+    /// <summary>正在由快捷键（回车 / Esc）主动收编辑框，期间屏蔽失焦自动提交。</summary>
+    private bool _closingEdit;
+
     public MainWindow(MemoViewModel vm, AppSettings settings, TrayIconManager tray)
     {
         InitializeComponent();
@@ -335,20 +338,64 @@ public partial class MainWindow : Window
 
         if (e.Key == Key.Enter)
         {
-            _vm.CommitEditCommand.Execute(item);
             e.Handled = true;
+            CloseEditor(item, commit: true);
         }
         else if (e.Key == Key.Escape)
         {
-            // 取消编辑：丢弃本次改动，恢复原文本
-            item.Content = item.OriginalContent;
-            item.IsEditing = false;
             e.Handled = true;
+            CloseEditor(item, commit: false);
+        }
+    }
+
+    /// <summary>
+    /// 收编辑框：先把键盘焦点接回顶部输入框，再让编辑框消失。
+    ///
+    /// 顺序不能反。反过来的话（先 IsEditing = false 让框收起）会出现一瞬间的「焦点悬空」：
+    /// 编辑框还握着键盘焦点却被隐藏了，WPF 只能把焦点甩给下一层可聚焦祖先（列表外层 ScrollViewer），
+    /// 并且因为回车是键盘操作，顺手给那个祖先画一圈焦点虚线框 ——
+    /// 于是「改完回车，列表四周闪一下虚线框」，闪完焦点被我们抢回去，框又消失。
+    /// 先落焦再收框，就没有这段悬空时间，也不会闪。
+    ///
+    /// _closingEdit 用来屏蔽「落焦 → 编辑框失焦 → EndEdit 又提交一次」：
+    /// 尤其是 Esc 取消编辑的情况，失焦自动提交会把改了一半的内容写进库，跟界面显示的原文本不一致。
+    /// </summary>
+    private void CloseEditor(MemoItem item, bool commit)
+    {
+        _closingEdit = true;
+        try
+        {
+            if (NewItemBox.IsVisible)
+            {
+                NewItemBox.Focus();
+            }
+
+            if (commit)
+            {
+                _vm.CommitEditCommand.Execute(item);
+            }
+            else
+            {
+                // 取消编辑：丢弃本次改动，恢复原文本
+                item.Content = item.OriginalContent;
+                item.IsEditing = false;
+            }
+        }
+        finally
+        {
+            _closingEdit = false;
         }
     }
 
     private void EditBox_LostFocus(object sender, RoutedEventArgs e)
     {
+        // 键盘收编辑框时（CloseEditor）焦点是先挪走的，这里会跟着触发一次，
+        // 交给 CloseEditor 自己决定是提交还是丢弃，别在这儿再提交一遍。
+        if (_closingEdit)
+        {
+            return;
+        }
+
         if (sender is FrameworkElement { DataContext: MemoItem item })
         {
             _vm.EndEdit(item);

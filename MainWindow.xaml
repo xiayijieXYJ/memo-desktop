@@ -294,8 +294,14 @@
             </Border>
 
             <!-- 待办列表 -->
+            <!-- Focusable=False + FocusVisualStyle 置空，双保险：
+                 编辑框收起时键盘焦点没地方去，WPF 会把它甩给下一层可聚焦祖先（就是这个 ScrollViewer），
+                 再按键盘模态补画一圈焦点虚线框 —— 现象就是「回车后列表四周闪出一个虚线框」。
+                 注释后的第一版只把 FocusVisualStyle 置空，实测仍会闪一帧（焦点先落过来、再被抢走），
+                 所以连 Focusable 一起关掉，让焦点压根落不到这上面。 -->
             <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Disabled" Padding="0,0,2,0">
+                          HorizontalScrollBarVisibility="Disabled" Padding="0,0,2,0"
+                          Focusable="False" FocusVisualStyle="{x:Null}">
                 <ScrollViewer.Resources>
                     <Style TargetType="ScrollBar">
                         <Setter Property="Width" Value="4" />
@@ -322,7 +328,9 @@
                     </Style>
                 </ScrollViewer.Resources>
 
-                <ItemsControl x:Name="ItemsList" ItemsSource="{Binding ItemsView}">
+                <!-- FocusVisualStyle 置空：焦点没处落时 WPF 会退到这个 ItemsControl 上，别让它画虚线框 -->
+                <ItemsControl x:Name="ItemsList" ItemsSource="{Binding ItemsView}"
+                              FocusVisualStyle="{x:Null}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type models:MemoItem}">
                             <Border x:Name="Row" CornerRadius="7" Padding="7,6" Margin="0,2"
@@ -369,9 +377,11 @@
                                             ToolTip="点击切换优先级" />
 
                                     <Grid Grid.Column="2" VerticalAlignment="Top">
+                                        <!-- 这里不要设 LineHeight/LineStackingStrategy：TextBox 没有 LineHeight 属性，
+                                             一旦给 TextBlock 定死行高（原来写的是 20），编辑框收起/展开时行距就换了一套，
+                                             文字会整体跳一下。两边都用默认行度量，位置才对得上。 -->
                                         <TextBlock x:Name="ContentText" Text="{Binding Content}"
                                                    Foreground="{DynamicResource TextPrimary}" FontSize="13"
-                                                   LineHeight="20" LineStackingStrategy="BlockLineHeight"
                                                    TextWrapping="Wrap"
                                                    Visibility="{Binding IsEditing, Converter={StaticResource InvBoolToVis}}"
                                                    MouseLeftButtonDown="ContentText_MouseLeftButtonDown" />
@@ -383,10 +393,15 @@
                                              高度由内容顶出来，窗户大小不动 —— 多出来的高度由外层 ScrollViewer 滚动消化。
                                              故意不设 MaxHeight：一旦限高就变成「框内滚动 + 卡片滚动」两层滚轮，
                                              滚起来会卡；让框一直长到底，只留外层一层滚动更好用。 -->
+                                        <!-- Margin 左 -2：TextBox 内部（TextBoxView）天生带 2px 左侧内缩，
+                                             不抵消掉的话进编辑时整段文字会右移 2px，回车后又弹回来。
+                                             负边距只吃掉这 2px，外面列宽不变。
+                                             也不设 MinHeight（原来写的是 20）：文本行实测只有 16.8 高，
+                                             撑到 20 会让这一行在编辑时变高、下面的行整体往下让，回车又缩回去。 -->
                                         <TextBox x:Name="EditBox"
                                                  Text="{Binding Content, UpdateSourceTrigger=PropertyChanged}"
                                                  Style="{StaticResource PlainTextBox}" FontSize="13"
-                                                 MinHeight="20" Padding="2,1"
+                                                 Padding="0" Margin="-2,0,0,0"
                                                  TextWrapping="Wrap" AcceptsReturn="False"
                                                  VerticalContentAlignment="Top"
                                                  HorizontalScrollBarVisibility="Disabled"

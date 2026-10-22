@@ -30,3 +30,6 @@ _*.db
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# ---------- 本地助手的工作目录（会话记录/笔记，不入库） ----------
+.workbuddy/
